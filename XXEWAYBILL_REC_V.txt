@@ -1,0 +1,591 @@
+
+  CREATE OR REPLACE FORCE EDITIONABLE VIEW "APPS"."XXEWAYBILL_REC_V" ("VERSION1", "TAXSCH", "SUPPLY_TYPE", "INVOICE_ID", "INVOICE_TYPE", "INVOICE_NUMBER", "INVOICE_DATE", "SELLER_STATE", "TAX_INVOICE_NUM", "SELLER_GSTIN", "SELLER_NAME", "SELLER_PHONE", "SELLER_ADDRESS1", "SELLER_ADDRESS2", "SELLER_CITY", "SELLER_POSTAL_CODE", "SELLER_STATE_CODE", "SELLER_EMAIL", "BUYER_GSTIN", "BUYER_NAME", "BUYER_STATE", "BUYER_ADDRESS1", "BUYER_ADDRESS2", "BUYER_CITY", "BUYER_POSTAL_CODE", "BUYER_POS", "BUYER_PHONE", "BUYER_EMAIL", "BUYER_SHIP_TO_GSTIN", "BUYER_SHIP_TO_NAME", "BUYER_SHIP_TO_ADDRESS1", "BUYER_SHIP_TO_ADDRESS2", "BUYER_SHIP_TO_CITY", "BUYER_SHIP_TO_POSTAL", "BUYER_SHIP_TO_STATE_CODE", "CGST_AMOUNT", "UTGST_AMOUNT", "IGST_AMOUNT", "NET_AMOUNT", "TAX_AMOUNT", "GROSS_AMOUNT", "ORG_ID", "SHIPBNO", "SHIPBDT", "CNTCODE", "FORCUR", "REF_INV_NO", "REF_INV_DATE", "DELIVERY_NO", "DELIVERY_DATE", "INVOICE_CURRENCY_CODE", "BUYER_COUNTRY", "EWAY_BILL_STATUS", "EWAY_BILL_NO", "CEWAY_BILL_NO", "IRN") AS 
+  SELECT '1.1'
+               AS Version1,
+           'GST'
+               AS TaxSch,
+           CASE WHEN buyer_country <> 'IN' THEN 'EXPWP' ELSE 'B2B' END
+               supply_type,                       ---------       invoice info
+           invoice_id,
+           invoice_type,
+           INVOICE_NUMBER,
+           INVOICE_DATE,
+           NULL
+               seller_state,
+           tax_invoice_num,                                      -------seller
+           SELLER_GSTIN,
+           seller_name,
+           SUBSTR (seller_phone, 1, 12)
+               seller_phone,
+           SUBSTR (seller_address1, 1, 100)
+               seller_address1,
+           NVL (seller_address2, 'NULL')
+               seller_address2,
+           seller_city,
+           SUBSTR (seller_postal_code, 1, 6)
+               seller_postal_code,
+           SUBSTR (seller_gstin, 1, 2)
+               seller_state_code,
+           seller_email,                              ----------         buyer
+           CASE
+               WHEN buyer_country <> 'IN' THEN 'URP'
+               WHEN BUYER_GSTIN LIKE 'N%' THEN 'URP'
+               ELSE BUYER_GSTIN
+           END
+               BUYER_GSTIN,
+           BUYER_NAME,
+           NULL
+               buyer_state,
+           SUBSTR (buyer_address1, 1, 100)
+               buyer_address1,
+           NVL (buyer_address2, 'NULL')
+               buyer_address2,
+           buyer_city,
+           CASE
+               WHEN buyer_country <> 'IN' THEN '999999'
+               ELSE SUBSTR (buyer_postal_code, 1, 6)
+           END
+               buyer_postal_code,
+           CASE
+               WHEN buyer_country <> 'IN' THEN '96'
+               ELSE SUBSTR (buyer_gstin, 1, 2)
+           END
+               buyer_pos,
+           NVL (buyer_phone, '9999999999')
+               buyer_phone,
+           NVL (buyer_email, 'customer@gmail.com')
+               buyer_email,                                    --------ship_to
+           CASE
+               WHEN buyer_country <> 'IN' THEN 'URP'
+               WHEN xx.buyer_ship_to_gstin IN ('N/A', 'NA') THEN 'URP'
+               ELSE NVL (xx.buyer_ship_to_gstin, 'URP')
+           END
+               buyer_ship_to_gstin,
+           xx.Buyer_ship_to_name
+               Buyer_ship_to_name,
+           SUBSTR (xx.Buyer_ship_to_address1, 1, 100)
+               Buyer_ship_to_address1,
+           NVL (xx.Buyer_ship_to_address2, 'NULL')
+               Buyer_ship_to_address2,
+           xx.Buyer_ship_to_city
+               Buyer_ship_to_city,
+           CASE
+               WHEN buyer_country <> 'IN' THEN '999999'
+               ELSE SUBSTR (xx.Buyer_ship_to_postal, 1, 6)
+           END
+               Buyer_ship_to_postal,
+           CASE
+               WHEN buyer_country <> 'IN'
+               THEN
+                   '96'
+               ELSE
+                   NVL (Buyer_ship_to_state_code,
+                        SUBSTR (xx.Buyer_ship_to_gstin, 1, 2))
+           END
+               Buyer_ship_to_state_code,
+           NVL (
+               CASE
+                   WHEN xx.invoice_type IN ('CRN')
+                   THEN
+                       -(TRUNC (xx.cgst_amount, 2))
+                   ELSE
+                       TRUNC (xx.cgst_amount, 2)
+               END,
+               0)
+               cgst_amount,
+           NVL (
+               CASE
+                   WHEN xx.invoice_type IN ('CRN')
+                   THEN
+                       -(TRUNC (xx.utgst_amount, 2))
+                   ELSE
+                       TRUNC (xx.utgst_amount, 2)
+               END,
+               0)
+               utgst_amount,
+           NVL (
+               CASE
+                   WHEN xx.invoice_type IN ('CRN')
+                   THEN
+                       -(TRUNC (xx.igst_amount, 2))
+                   ELSE
+                       TRUNC (xx.igst_amount, 2)
+               END,
+               0)
+               igst_amount,
+           NVL (
+               CASE
+                   WHEN invoice_type IN ('CM')
+                   THEN
+                       -(ABS (invoice_assessable_amount))
+                   ELSE
+                       ABS (invoice_assessable_amount)
+               END,
+               net_amount)
+               net_amount,
+           CASE
+               WHEN xx.invoice_type IN ('CRN') THEN -(xx.tax_amount)
+               ELSE xx.tax_amount
+           END
+               tax_amount,
+           NVL (ABS (gross_amount), gross_amount_exp)
+               gross_amount,
+           XX.org_id,
+           invoice_number
+               shipbno,
+           invoice_date
+               shipbdt,
+           buyer_country
+               cntcode,
+           invoice_currency_code
+               forcur,
+           xx.ref_inv_no,
+           xx.ref_inv_date,
+           xx.delivery_no,
+           xx.delivery_date,
+           xx.invoice_currency_code,
+           xx.buyer_country,
+           XX.eway_bill_status,
+           XX.eway_bill_no,
+           XX.ceway_bill_no,
+           XX.irn
+      FROM (SELECT NVL (
+                       (SELECT flv.description
+                          FROM fnd_lookup_values flv
+                         WHERE     flv.lookup_type = 'ROSTAN_INVOICE_TYPE'
+                               AND flv.meaning = rat.TYPE),
+                       rat.TYPE)
+                       invoice_type,
+                   rc.customer_trx_id
+                       invoice_id,
+                   rc.trx_date
+                       "INVOICE_DATE",
+                   rc.trx_number
+                       invoice_number,
+                   NVL ( (SELECT jipl.tax_invoice_num
+                            FROM jai_tax_det_factors jipl
+                           WHERE trx_id = rc.customer_trx_id AND ROWNUM = 1),
+                        rc.trx_number)
+                       tax_invoice_num,
+                   --SELLER INFO--------------------------------------------------------Q---
+                   hl1.description
+                       seller_name,
+                   (SELECT first_party_primary_reg_num
+                      FROM jai_tax_lines_v
+                     WHERE     trx_id = rc.customer_trx_id
+                           AND org_id = rc.org_id
+                           AND ROWNUM < 2)
+                       SELLER_GSTIN,
+                   hl1.TELEPHONE_NUMBER_1
+                       seller_phone,
+                   hl1.ADDRESS_LINE_1
+                       seller_address1,
+                   hl1.ADDRESS_LINE_2
+                       seller_address2,
+                   NVL (hl1.town_or_city, hl1.loc_information15)
+                       seller_city,
+                   hl1.postal_code
+                       seller_postal_code,
+                   hl1.country
+                       seller_country,
+                   hl1.loc_information17
+                       seller_email,
+                   --BUYER INFO-----------------------------------------------------------------------
+                   hp.party_name
+                       buyer_name,
+                   NVL (
+                       (SELECT THIRD_PARTY_PRIMARY_REG_NUM
+                          FROM jai_tax_lines_v
+                         WHERE     trx_id = rc.customer_trx_id
+                               AND org_id = rc.org_id
+                               AND ROWNUM < 2),
+                       (SELECT l.REGISTRATION_NUMBER
+                          FROM jai_party_reg_lines_v l, jai_party_regs_v h
+                         WHERE     1 = 1
+                               AND l.party_reg_id = h.party_reg_id
+                               AND l.REGIME_ID = 10001
+                               AND l.REGISTRATION_TYPE_CODE = 'GSTIN'
+                               AND l.REGISTRATION_TYPE_NAME = 'GSTIN'
+                               AND h.CUSTOMER_FLAG = 'Y'
+                               AND h.PARTY_TYPE_CODE = 'THIRD_PARTY_SITE'
+                               AND SYSDATE BETWEEN l.effective_from
+                                               AND NVL (l.effective_to,
+                                                        SYSDATE + 1)
+                               AND h.party_id = hcaa.cust_account_id
+                               AND h.party_site_id = hcasa.cust_acct_site_id
+                               AND h.org_id = rc.org_id))
+                       "BUYER_GSTIN",
+                   hl.address1
+                       buyer_address1,
+                   hl.address2
+                       buyer_address2,
+                   NVL (hl.city, hl.state)
+                       buyer_city,
+                   hl.state
+                       buyer_state,
+                   hl.postal_code
+                       buyer_postal_code,
+                   (SELECT HCP.EMAIL_ADDRESS
+                      FROM hz_contact_points HCP
+                     WHERE     HCP.CONTACT_POINT_TYPE = 'EMAIL'
+                           AND HCP.PRIMARY_FLAG = 'Y'
+                           AND hcp.owner_table_name = 'HZ_PARTIES'
+                           AND HCP.OWNER_TABLE_ID = HP.PARTY_ID)
+                       buyer_email,
+                   (SELECT HCP1.EMAIL_ADDRESS
+                      FROM hz_contact_points HCP1
+                     WHERE     HCP1.CONTACT_POINT_TYPE = 'PHONE'
+                           AND HCP1.PRIMARY_FLAG = 'Y'
+                           AND hcp1.owner_table_name = 'HZ_PARTIES'
+                           AND hcp1.phone_line_type = 'GEN'
+                           AND HCP1.OWNER_TABLE_ID = HP.PARTY_ID)
+                       buyer_phone,
+                   hl.country
+                       buyer_country,
+                   --buyer_ship_to_details
+                    (SELECT MAX (l.REGISTRATION_NUMBER)
+                       FROM jai_party_reg_lines_v l, jai_party_regs_v h
+                      WHERE     1 = 1
+                            AND l.party_reg_id = h.party_reg_id
+                            AND l.REGIME_ID = 10001
+                            AND l.REGISTRATION_TYPE_CODE = 'GSTIN'
+                            AND l.REGISTRATION_TYPE_NAME = 'GSTIN'
+                            AND h.CUSTOMER_FLAG = 'Y'
+                            AND h.PARTY_TYPE_CODE = 'THIRD_PARTY_SITE'
+                            AND SYSDATE BETWEEN l.effective_from
+                                            AND NVL (l.effective_to,
+                                                     SYSDATE + 1)
+                            AND h.party_id = hcaa2.cust_account_id
+                            AND h.party_site_id = hcasa2.cust_acct_site_id
+                            AND h.org_id = rc.org_id)
+                       "BUYER_SHIP_TO_GSTIN",
+                   NVL (hl2.ADDRESS_LINES_PHONETIC, hp2.party_name)
+                       Buyer_ship_to_name,
+                   hl2.address1
+                       Buyer_ship_to_address1,
+                   NVL (hl2.address2, hl2.address3)
+                       Buyer_ship_to_address2,
+                   hl2.state
+                       Buyer_ship_to_city,
+                   NVL (
+                       (SELECT fltv3.meaning     tostate_code
+                          FROM fnd_lookup_values_vl  fltv3,
+                               fnd_lookup_types_vl   fltv1
+                         WHERE     UPPER (fltv3.description) =
+                                   UPPER (hl2.state)
+                               AND fltv1.lookup_type = fltv3.lookup_type
+                               AND fltv1.lookup_type = 'JA_IN_STATE_CODE'),
+                       --                     CASE WHEN UPPER (hl2.state) = 'NEW DELHI' THEN '07'else END,
+                       CASE
+                           WHEN UPPER (hl2.state) = 'DADRA AND NAGAR HAVELI'
+                           THEN
+                               '26'
+                           WHEN UPPER (hl2.state) = 'NEW DELHI'
+                           THEN
+                               '07'
+                       END)
+                       Buyer_ship_to_state_code,
+                   hl2.postal_code
+                       Buyer_ship_to_postal,
+                   rc.org_id,
+                   htotal.cgst_amount,
+                   htotal.UTGST_amount,
+                   htotal.igst_amount,
+                   htotal.line_amt
+                       invoice_assessable_amount,
+                   ROUND (
+                       (SELECT SUM (extended_amount)
+                          FROM ra_customer_trx_lines_all
+                         WHERE     customer_trx_id = rc.customer_trx_id
+                               AND org_id = rc.org_id
+                               AND line_type = 'LINE'),
+                       2)
+                       net_amount,
+                   (SELECT SUM (UNROUND_TAX_AMT_TRX_CURR)
+                      FROM jai_tax_lines
+                     WHERE TRX_ID = htotal.trx_id AND org_id = htotal.org_id)
+                       TAX_amount,
+                   (  (htotal.line_amt)
+                    + (htotal.cgst_amount)
+                    + (htotal.utgst_amount)
+                    + (htotal.igst_amount)
+                    + (htotal.tcs_amount))
+                       Gross_amount,
+                   ROUND (
+                       (SELECT SUM (extended_amount)
+                          FROM ra_customer_trx_lines_all
+                         WHERE     customer_trx_id = rc.customer_trx_id
+                               AND org_id = rc.org_id),
+                       2)
+                       gross_amount_exp,
+                   hcaa.attribute1,
+                   rc.INVOICE_CURRENCY_CODE,
+                   (SELECT trx_number
+                      FROM ra_customer_trx_all
+                     WHERE customer_trx_id = rc.INITIAL_CUSTOMER_TRX_ID)
+                       ref_inv_no,
+                   (SELECT TO_CHAR (trx_date, 'DD/MM/YYYY')
+                      FROM ra_customer_trx_all
+                     WHERE customer_trx_id = rc.INITIAL_CUSTOMER_TRX_ID)
+                       ref_inv_date,
+                   NULL
+                       delivery_no,
+                   NULL
+                       delivery_date,
+                   htotal.organization_id,
+                   (SELECT xwb.eway_bill_status
+                      FROM xx_eway_bill_part_a_header xwb
+                     WHERE     rc.customer_trx_id = xwb.customer_trx_id --     AND rc.trx_number = xwb.ar_invoice
+                           AND ROWNUM = 1)
+                       eway_bill_status,
+                   (SELECT xwb.eway_bill_no
+                      FROM xx_eway_bill_part_a_header xwb
+                     WHERE     rc.customer_trx_id = xwb.customer_trx_id --      AND rc.trx_number = xwb.ar_invoice
+                           AND ROWNUM = 1)
+                       "EWAY_BILL_NO",
+                   (SELECT xwb.ceway_bill_no
+                      FROM xx_eway_bill_part_a_header xwb
+                     WHERE     rc.customer_trx_id = xwb.customer_trx_id --    AND rc.trx_number = xwb.ar_invoice
+                           AND ROWNUM = 1)
+                       "CEWAY_BILL_NO",
+                   rc.attribute13
+                       IRN
+              FROM ra_customer_trx_all     rc,
+                   ra_cust_trx_types_all   rat,
+                   hr_operating_units      hro,
+                   hr_organization_units   hro1,
+                   hz_locations            hl,
+                   hr_locations            hl1,
+                   hz_parties              hp,
+                   hz_party_sites          hps,
+                   hz_cust_accounts_all    hcaa,
+                   hz_cust_site_uses_all   hcsua,
+                   hz_cust_acct_sites_all  hcasa,
+                   hz_locations            hl2,
+                   hz_parties              hp2,
+                   hz_party_sites          hps2,
+                   hz_cust_accounts_all    hcaa2,
+                   hz_cust_site_uses_all   hcsua2,
+                   hz_cust_acct_sites_all  hcasa2,
+                   (  SELECT trx_number,
+                             SUM (line_amt)               line_amt,
+                             SUM (cgst_amount)            cgst_amount,
+                             SUM (utgst_amount)           utgst_amount,
+                             SUM (igst_amount)            igst_amount,
+                             SUM (tcsamountincometax)     tcs_amount,
+                             SUM (invoiceothercharges)    invoiceothercharges,
+                             (  SUM (line_amt)
+                              + SUM (cgst_amount)
+                              + SUM (utgst_amount)
+                              + SUM (igst_amount))        total_invoice_amount,
+                             trx_id,
+                             org_id,
+                             trx_date,
+                             tax_invoice_num,
+                             organization_id,
+                             original_tax_invoice_num,
+                             original_tax_invoice_date
+                        FROM (  SELECT jtd.trx_number,
+                                       jtd.trx_line_number,
+                                       NVL (
+                                           AVG (
+                                               CASE
+                                                   WHEN (   UPPER (
+                                                                jtl.tax_rate_code) LIKE
+                                                                '%CGST%'
+                                                         OR UPPER (
+                                                                jtl.tax_rate_code) LIKE
+                                                                '%UTGST%'
+                                                         OR UPPER (
+                                                                jtl.tax_rate_code) LIKE
+                                                                '%SGST%'
+                                                         OR UPPER (
+                                                                jtl.tax_rate_code) LIKE
+                                                                '%IGST%')
+                                                   THEN
+                                                       jtl.taxable_basis
+                                                   ELSE
+                                                       NULL
+                                               END),
+                                           jtd.line_amt)    line_amt,
+                                       SUM (
+                                           CASE
+                                               WHEN UPPER (jtl.tax_rate_code) LIKE
+                                                        '%CGST%'
+                                               THEN
+                                                   NVL (
+                                                       jtl.rounded_tax_amt_trx_curr,
+                                                       0)
+                                               ELSE
+                                                   0
+                                           END)             cgst_amount,
+                                       SUM (
+                                           CASE
+                                               WHEN (   UPPER (jtl.tax_rate_code) LIKE
+                                                            ('%SGST%')
+                                                     OR UPPER (jtl.tax_rate_code) LIKE
+                                                            ('%UTGST%'))
+                                               THEN
+                                                   NVL (
+                                                       jtl.rounded_tax_amt_trx_curr,
+                                                       0)
+                                               ELSE
+                                                   0
+                                           END)             utgst_amount,
+                                       SUM (
+                                           CASE
+                                               WHEN UPPER (jtl.tax_rate_code) LIKE
+                                                        '%IGST%'
+                                               THEN
+                                                   NVL (
+                                                       jtl.rounded_tax_amt_trx_curr,
+                                                       0)
+                                               ELSE
+                                                   0
+                                           END)             igst_amount,
+                                       SUM (
+                                           CASE
+                                               WHEN UPPER (jtl.tax_rate_code) LIKE
+                                                        '%TCS%'
+                                               THEN
+                                                   NVL (
+                                                       jtl.rounded_tax_amt_trx_curr,
+                                                       0)
+                                               ELSE
+                                                   0
+                                           END)             tcsamountincometax,
+                                       0                    invoiceothercharges, --  NEED TO BE WHILE DOING E-WAY BILL
+                                       jtd.trx_id,
+                                       jtd.org_id,
+                                       jtd.trx_date,
+                                       jtd.tax_invoice_num,
+                                       jtd.trx_line_id,
+                                       jtd.organization_id,
+                                       jtd.original_tax_invoice_num,
+                                       jtd.original_tax_invoice_date
+                                  FROM jai_tax_lines jtl, jai_tax_det_factors jtd
+                                 WHERE     jtl.det_factor_id = jtd.det_factor_id
+                                       AND jtd.application_id = 222
+                                       AND UPPER (jtd.entity_code) =
+                                           'TRANSACTIONS'
+                                       AND (   UPPER (jtl.tax_rate_code) LIKE
+                                                   '%IGST%'
+                                            OR UPPER (jtl.tax_rate_code) LIKE
+                                                   '%CGST%'
+                                            OR UPPER (jtl.tax_rate_code) LIKE
+                                                   '%SGST%'
+                                            OR UPPER (jtl.tax_rate_code) LIKE
+                                                   '%UTGST%'
+                                            OR UPPER (jtl.tax_rate_code) LIKE
+                                                   '%TCS%')
+                              GROUP BY jtd.trx_id,
+                                       JTD.TRX_NUMBER,
+                                       JTD.TRX_LINE_NUMBER,
+                                       jtd.line_amt,
+                                       jtd.org_id,
+                                       jtd.trx_date,
+                                       jtd.tax_invoice_num,
+                                       jtd.trx_line_id,
+                                       jtd.organization_id,
+                                       jtd.original_tax_invoice_num,
+                                       jtd.original_tax_invoice_date)
+                    GROUP BY trx_id,
+                             trx_number,
+                             org_id,
+                             trx_date,
+                             tax_invoice_num,
+                             organization_id,
+                             original_tax_invoice_num,
+                             original_tax_invoice_date) htotal
+             WHERE     1 = 1
+                   AND rc.customer_trx_id = htotal.trx_id(+)
+                   AND rc.org_id = htotal.org_id(+)
+                   AND hro1.location_id = hl1.location_id
+                   AND hp.party_id = hps.party_id
+                   AND hps.location_id = hl.location_id
+                   AND hp.party_id = hcaa.party_id
+                   AND hcaa.cust_account_id = hcasa.cust_account_id
+                   AND hcasa.cust_acct_site_id = hcsua.cust_acct_site_id
+                   AND hcsua.site_use_id = rc.bill_to_site_use_id
+                   AND hcasa.party_site_id = hps.party_site_id
+                   AND hcsua.SITE_USE_CODE = 'BILL_TO'
+                   AND rc.org_id = hro.organization_id
+                   AND NVL (htotal.organization_id, rc.org_id) =
+                       hro1.organization_id
+                   AND rc.org_id = rat.org_id
+                   AND rc.cust_trx_type_id = rat.cust_trx_type_id
+                   AND hp2.party_id = hps2.party_id
+                   AND hps2.location_id = hl2.location_id
+                   AND hp2.party_id = hcaa2.party_id
+                   AND hcaa2.cust_account_id = hcasa2.cust_account_id
+                   AND hcasa2.cust_acct_site_id = hcsua2.cust_acct_site_id
+                   AND hcsua2.site_use_id =
+                       NVL (rc.SHIP_TO_SITE_USE_ID, rc.bill_to_site_use_id)
+                   AND hcasa2.party_site_id = hps2.party_site_id
+                   AND hcsua2.SITE_USE_CODE IN ('SHIP_TO', 'BILL_TO')
+                   AND rc.complete_flag = 'Y'
+                   --and rc.trx_number='1101241931'
+                   AND rc.trx_date >= '01-OCT-2020') xx
+    ----------------------------------Added by Krishna for DC Challan on 30-Jan-2023
+    UNION
+    SELECT '1.1'                               AS version1,
+           'GST'                               AS taxsch,
+           'B2B'                               supply_type,
+           h.header_id                         invoice_id,
+           h.doc_type                          invoice_type,
+           h.challan_num                       invoice_number,
+           h.challan_date                      invoice_date,
+           h.dispatch_state                    seller_state,
+           h.challan_num                       tax_invoice_num,
+           h.dispatch_cust_gst                 seller_gstin,
+           h.dispatch_cust_name                seller_name,
+           '01923222773'                       seller_phone,
+           h.dispatch_address1                 seller_address1,
+           h.dispatch_address2                 seller_address2,
+           h.dispatch_city                     seller_city,
+           h.dispatch_postal_code              seller_postal_code,
+           TO_CHAR (h.dispatch_statecode)      seller_state_code,
+           'info@sudhirpower.com'              seller_email,
+           h.bill_to_cust_gst                  buyer_gstin,
+           h.bill_to_cust_name                 buyer_name,
+           h.bill_to_state                     buyer_state,
+           h.bill_to_address1                  buyer_address1,
+           h.bill_to_address2                  buyer_address2,
+           h.bill_to_city                      buyer_city,
+           h.bill_to_postal_code               buyer_postal_code,
+           SUBSTR (bill_to_cust_gst, 1, 2)     buyer_pos,
+           '9999999999'                        buyer_phone,
+           'customer@gmail.com'                buyer_email,
+           h.ship_to_cust_gst                  buyer_ship_to_gstin,
+           h.ship_to_cust_name                 buyer_ship_to_name,
+           h.ship_to_address1                  buyer_ship_to_address1,
+           h.ship_to_address2                  buyer_ship_to_address2,
+           h.ship_to_city                      buyer_ship_to_city,
+           h.ship_to_postal_code               buyer_ship_to_postal,
+           SUBSTR (ship_to_cust_gst, 1, 2)     buyer_ship_to_state_code,
+           l.cgstrate                          cgst_amount,
+           0                                   utgst_amount,
+           l.igstrate                          igst_amount,
+           h.total_value                       net_amount,
+           h.total_value_of_goods              tax_amount,
+           h.total_value                       gross_amount,
+           h.ou_org_id                         org_id,
+           h.challan_num                       shipbno,
+           h.challan_date                      shipbdt,
+           'IN'                                cntcode,
+           'INR'                               forcur,
+           NULL                                ref_inv_no,
+           NULL                                ref_inv_date,
+           NULL                                delivery_no,
+           NULL                                delivery_date,
+           'INR'                               invoice_currency_code,
+           'IN'                                buyer_country,
+           h.eway_bill_status,
+           h.eway_bill_num                     EWAY_BILL_NO,
+           NULL                                CEWAY_BILL_NO,
+           NULL                                irn
+      FROM apps.xxsp_ewaybill_challan_hdrs   h,
+           apps.xxsp_ewaybill_challan_lines  l
+     WHERE 1 = 1 AND h.header_id = l.header_id
+;
+
